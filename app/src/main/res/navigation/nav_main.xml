@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_main"
+    app:startDestination="@id/home2">
+
+    <fragment
+        android:id="@+id/home2"
+        android:name="com.jmm.womensafety.screens.Home"
+        android:label="fragment_home"
+        tools:layout="@layout/fragment_home" />
+    <fragment
+        android:id="@+id/emergencyContacts"
+        android:name="com.jmm.womensafety.screens.EmergencyContacts"
+        android:label="fragment_emergency_contacts"
+        tools:layout="@layout/fragment_emergency_contacts" />
+    <fragment
+        android:id="@+id/favouriteContacts"
+        android:name="com.jmm.womensafety.screens.FavouriteContacts"
+        android:label="fragment_favourite_contacts"
+        tools:layout="@layout/fragment_favourite_contacts" />
+</navigation>
