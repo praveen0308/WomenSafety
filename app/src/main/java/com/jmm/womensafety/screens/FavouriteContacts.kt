@@ -1,60 +1,127 @@
 package com.jmm.womensafety.screens
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
-import androidx.fragment.app.Fragment
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
+import androidx.fragment.app.viewModels
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.jmm.womensafety.AddEditContact
 import com.jmm.womensafety.R
+import com.jmm.womensafety.adapters.Contact2Adapter
+import com.jmm.womensafety.databinding.FragmentFavouriteContactsBinding
+import com.jmm.womensafety.models.ContactModel
+import com.jmm.womensafety.util.BaseFragment
+import com.jmm.womensafety.viewmodel.FavouriteContactsViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
+@AndroidEntryPoint
+class FavouriteContacts :
+    BaseFragment<FragmentFavouriteContactsBinding>(FragmentFavouriteContactsBinding::inflate),
+    Contact2Adapter.Contact2AdapterInterface {
 
-/**
- * A simple [Fragment] subclass.
- * Use the [FavouriteContacts.newInstance] factory method to
- * create an instance of this fragment.
- */
-class FavouriteContacts : Fragment() {
-    // TODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
+    private val viewModel by viewModels<FavouriteContactsViewModel>()
+    private lateinit var contactAdapter: Contact2Adapter
+    private var selectedMobileNo = ""
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
+    private var currentMode = 0
+
+    val requestPermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { isGranted: Boolean ->
+            if (isGranted) {
+                val callIntent = Intent(Intent.ACTION_CALL)
+                callIntent.data = Uri.parse("tel:$selectedMobileNo")
+                startActivity(callIntent)
+            } else {
+                showToast("Permission rejected !!!")
+            }
+        }
+
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        setupRvContacts()
+
+        binding.apply {
+            btnEdit.setOnClickListener {
+                viewModel.mode.postValue(1-currentMode)
+            }
+            btnAddContact.setOnClickListener {
+                val intent = Intent(requireActivity(), AddEditContact::class.java)
+                intent.putExtra("action", "add")
+                startActivity(intent)
+
+            }
         }
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_favourite_contacts, container, false)
+    private fun setupRvContacts() {
+        contactAdapter = Contact2Adapter(this)
+        binding.rvContacts.apply {
+            setHasFixedSize(true)
+            layoutManager = LinearLayoutManager(context)
+            adapter = contactAdapter
+        }
+
+//        populateEmergencyContacts()
     }
 
-    companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment FavouriteContacts.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            FavouriteContacts().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
-                    putString(ARG_PARAM2, param2)
-                }
+    override fun subscribeObservers() {
+        viewModel.mode.observe(viewLifecycleOwner){
+            currentMode = it
+            if (it==0){
+                binding.btnEdit.setImageResource(R.drawable.ic_baseline_edit_24)
+            }else{
+                binding.btnEdit.setImageResource(R.drawable.ic_baseline_close_24)
             }
+            if (contactAdapter!=null){
+                contactAdapter.setMode(it)
+            }
+        }
+        viewModel.contacts.observe(viewLifecycleOwner) {
+            binding.groupNoRecords.isVisible = it.isEmpty()
+            binding.btnEdit.isVisible = it.isNotEmpty()
+            contactAdapter.setContacts(it)
+
+        }
     }
+
+    override fun onCallItemClick(item: ContactModel) {
+        selectedMobileNo = item.MobileNo
+        if (ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.CALL_PHONE
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            val callIntent = Intent(Intent.ACTION_CALL)
+            callIntent.data = Uri.parse("tel:$selectedMobileNo")
+            startActivity(callIntent)
+        } else {
+            requestPermissionLauncher.launch(
+                Manifest.permission.CALL_PHONE
+
+            )
+        }
+
+    }
+
+    override fun onDeleteClick(item: ContactModel) {
+        viewModel.deleteContact(item)
+        showToast("Deleted successfully !!!")
+    }
+
+    override fun onEditClick(item: ContactModel) {
+        val intent = Intent(requireActivity(), AddEditContact::class.java)
+        intent.putExtra("action", "edit")
+        intent.putExtra("contact",item)
+        startActivity(intent)
+    }
+
 }
